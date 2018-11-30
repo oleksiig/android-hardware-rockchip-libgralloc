@@ -23,6 +23,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "gralloc_drm_handle.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -141,15 +142,6 @@ out:
 	return rval;
 }
 
-/*
-#define LayerNameLength		100
-typedef struct rk_ashmem_t
-{
-    int32_t alreadyStereo;
-    int32_t displayStereo;
-    char LayerName[LayerNameLength + 1];
-} rk_ashmem_t;
-*/
 /*
  * Read or write rk_ashmem from/to the storage area.
  *

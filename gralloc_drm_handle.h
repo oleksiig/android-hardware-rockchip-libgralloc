@@ -24,8 +24,8 @@
 #ifndef _GRALLOC_DRM_HANDLE_H_
 #define _GRALLOC_DRM_HANDLE_H_
 
-// #define ENABLE_DEBUG_LOG
-#include <log/custom_log.h>
+// #define LOG_NDEBUG
+#include <log/log.h>
 
 #include <cutils/native_handle.h>
 #include <system/graphics.h>
@@ -49,14 +49,6 @@ typedef enum
 	MALI_DPY_TYPE_HDLCD
 } mali_dpy_type;
 
-
-#if 0
-#if MALI_PRODUCT_ID_T86X != 1 \
-    && MALI_PRODUCT_ID_T76X != 1 \
-    && MALI_PRODUCT_ID_T72X != 1
-#error "we must define MALI_PRODUCT_ID_TXXX for current Mali GPU."
-#endif
-
 /* ??? mali-t860 ??? AFBC. */
 #if MALI_PRODUCT_ID_T86X == 1 && MALI_AFBC_GRALLOC != 1
 #error "we must enable AFBC for mali-t860."
@@ -68,7 +60,6 @@ typedef enum
 
 #if MALI_PRODUCT_ID_T72X == 1 && MALI_AFBC_GRALLOC == 1
 #error "we must NOT enable AFBC for mali-t720."
-#endif
 #endif
 
 #endif

@@ -377,9 +377,9 @@ static int drm_mod_lock_ycbcr(gralloc_module_t const* module,
 
 
 
-static int drm_mod_unlock(const gralloc_module_t *mod, buffer_handle_t handle)
+static int drm_mod_unlock(const gralloc_module_t * /*mod*/, buffer_handle_t handle)
 {
-	struct drm_module_t *dmod = (struct drm_module_t *) mod;
+	//struct drm_module_t *dmod = (struct drm_module_t *) mod;
 	struct gralloc_drm_bo_t *bo;
 
 	bo = gralloc_drm_bo_from_handle(handle);
@@ -414,10 +414,9 @@ static int drm_mod_close_gpu0(struct hw_device_t *dev)
 	return 0;
 }
 
-static int drm_mod_free_gpu0(alloc_device_t *dev, buffer_handle_t handle)
+static int drm_mod_free_gpu0(alloc_device_t * /*dev*/, buffer_handle_t handle)
 {
-	struct drm_module_t *dmod = (struct drm_module_t *) dev->common.module;
-	struct gralloc_drm_bo_t *bo;
+	//struct drm_module_t *dmod = (struct drm_module_t *) dev->common.module;
 
 	return gralloc_drm_free_bo_from_handle(handle);
 }
@@ -428,7 +427,7 @@ static int drm_mod_alloc_gpu0(alloc_device_t *dev,
 {
 	struct drm_module_t *dmod = (struct drm_module_t *) dev->common.module;
 	struct gralloc_drm_bo_t *bo;
-	int size, bpp, err;
+	int bpp;
 
 #if RK_DRM_GRALLOC
     if(format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED)

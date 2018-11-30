@@ -17,8 +17,9 @@
  */
 
 #define LOG_TAG "gralloc"
-// #define ENABLE_DEBUG_LOG
-#include <log/custom_log.h>
+
+// #define LOG_NDEBUG 0
+#include <log/log.h>
 
 #include <string.h>
 #include <dlfcn.h>
@@ -67,12 +68,12 @@ uint64_t mali_gralloc_select_format(uint64_t req_format, mali_gralloc_format_typ
     {
         if ( GRALLOC_USAGE_HW_VIDEO_ENCODER == (usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) )
         {
-            I("(usage & GRALLOC_USAGE_HW_VIDEO_ENCODER treat as NV12");
+            ALOGI("(usage & GRALLOC_USAGE_HW_VIDEO_ENCODER treat as NV12");
             internal_format = HAL_PIXEL_FORMAT_YCrCb_NV12;
         }
         else
         {
-            I("treat as NV12 888");
+            ALOGI("treat as NV12 888");
             internal_format = HAL_PIXEL_FORMAT_RGBX_8888;
         }
     }

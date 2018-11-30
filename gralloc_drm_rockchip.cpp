@@ -1,7 +1,7 @@
 #define LOG_TAG "GRALLOC-ROCKCHIP"
 
-// #define ENABLE_DEBUG_LOG
-#include <log/custom_log.h>
+// #define LOG_NDEBUG 0
+#include <log/log.h>
 
 
 #include <cutils/log.h>
@@ -16,8 +16,10 @@ extern "C" {
 #include "gralloc_helper.h"
 #include "gralloc_drm.h"
 #include "gralloc_drm_priv.h"
+
 #if RK_DRM_GRALLOC
 #include <cutils/properties.h>
+
 #if MALI_AFBC_GRALLOC == 1
 #include <inttypes.h>
 #include "gralloc_buffer_priv.h"
@@ -25,6 +27,7 @@ extern "C" {
 #include "mali_gralloc_usages.h"
 #endif //end of MALI_AFBC_GRALLOC
 #endif //end of RK_DRM_GRALLOC
+
 #include <stdbool.h>
 #include <sys/stat.h>
 
@@ -1484,7 +1487,6 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
 	size_t size;
 	uint32_t gem_handle;
 	AllocType alloc_type = UNCOMPRESSED;
-	bool alloc_for_extended_yuv = false, alloc_for_arm_afbc_yuv = false;
 	int internalWidth,internalHeight;
 	uint64_t internal_format;
         int byte_stride;   // Stride of the buffer in bytes
@@ -1503,7 +1505,7 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
 	uint32_t flags = 0;
 	struct drm_rockchip_gem_phys phys_arg;
 
-        D("enter, w : %d, h : %d, format : 0x%x, usage : 0x%x.", w, h, format, usage);
+	ALOGV("enter, w : %d, h : %d, format : 0x%x, usage : 0x%x.", w, h, format, usage);
 
 	phys_arg.phy_addr = 0;
 
@@ -1805,7 +1807,7 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
             break;
 
         default:
-            E("unexpected 'base_format' : 0x%" PRIu64, base_format);
+            ALOGE("unexpected 'base_format' : 0x%" PRIu64, base_format);
             return NULL;
     }
 
@@ -1864,7 +1866,7 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
 	if ( (usage & GRALLOC_USAGE_SW_READ_MASK) == GRALLOC_USAGE_SW_READ_OFTEN
 		|| format == HAL_PIXEL_FORMAT_YCrCb_NV12_10)
 	{
-		D("to ask for cachable buffer for CPU read, usage : 0x%x", usage);
+		ALOGV("to ask for cachable buffer for CPU read, usage : 0x%x", usage);
 		//set cache flag
 		flags = ROCKCHIP_BO_CACHABLE;
 	}
@@ -1896,7 +1898,7 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
 #if RK_DRM_GRALLOC
 		AINF("Got handle %d for fd %d\n", gem_handle, handle->prime_fd);
 #else
-                ALOGV("Got handle %d for fd %d\n", gem_handle, handle->prime_fd);
+		ALOGV("Got handle %d for fd %d\n", gem_handle, handle->prime_fd);
 #endif
 
 		buf->bo = rockchip_bo_from_handle(info->rockchip, gem_handle,
@@ -1933,7 +1935,7 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
 		ret = drmPrimeHandleToFD(info->fd, gem_handle, 0,
 			&handle->prime_fd);
 #if RK_DRM_GRALLOC
-                AINF("Got fd %d for handle %d\n", handle->prime_fd, gem_handle);
+		AINF("Got fd %d for handle %d\n", handle->prime_fd, gem_handle);
 #else
 		ALOGV("Got fd %d for handle %d\n", handle->prime_fd, gem_handle);
 #endif
@@ -1941,7 +1943,7 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
 #if RK_DRM_GRALLOC
 			AERR("failed to get prime fd %d", ret);
 #else
-                        ALOGE("failed to get prime fd %d", ret);
+			ALOGE("failed to get prime fd %d", ret);
 #endif
 			goto err_unref;
 		}
@@ -1971,12 +1973,12 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
         {
             if ( addr != NULL )
             {
-                D("to init afbc_buffer, addr : %p", addr);
+                ALOGV("to init afbc_buffer, addr : %p", addr);
                 init_afbc((uint8_t*)addr, internal_format, w, h);
             }
             else
             {
-                E("can't init afbc_buffer.");
+                ALOGE("can't init afbc_buffer.");
             }
         }
 #endif /* GRALLOC_INIT_AFBC == 1 */
@@ -2038,29 +2040,6 @@ struct gralloc_drm_bo_t *drm_gem_rockchip_alloc(
 	}
 #endif
 
-#if 0
-	int private_usage = usage & (GRALLOC_USAGE_PRIVATE_0 |
-	                             GRALLOC_USAGE_PRIVATE_1);
-	switch (private_usage)
-	{
-		case 0:
-			if(USAGE_CONTAIN_VALUE(GRALLOC_USAGE_TO_USE_ARM_P010,GRALLOC_USAGE_ROT_MASK))
-				handle->yuv_info = MALI_YUV_BT709_WIDE;//MALI_YUV_BT601_NARROW;
-			else
-				handle->yuv_info = MALI_YUV_BT601_NARROW;
-			break;
-		case GRALLOC_USAGE_PRIVATE_1:
-			handle->yuv_info = MALI_YUV_BT601_WIDE;
-			break;
-		case GRALLOC_USAGE_PRIVATE_0:
-			handle->yuv_info = MALI_YUV_BT709_NARROW;
-			break;
-		case (GRALLOC_USAGE_PRIVATE_0 | GRALLOC_USAGE_PRIVATE_1):
-			handle->yuv_info = MALI_YUV_BT709_WIDE;
-			break;
-	}
-#endif
-    
     switch (usage & MALI_GRALLOC_USAGE_YUV_CONF_MASK)
     {
         case MALI_GRALLOC_USAGE_YUV_CONF_0:
@@ -2156,16 +2135,16 @@ void drm_gem_rockchip_free(struct gralloc_drm_drv_t *drv,
 	free(buf);
 }
 
-static int drm_gem_rockchip_map(struct gralloc_drm_drv_t *drv,
-		struct gralloc_drm_bo_t *bo, int x, int y, int w, int h,
-		int enable_write, void **addr)
+static int drm_gem_rockchip_map(struct gralloc_drm_drv_t * /*drv*/,
+		struct gralloc_drm_bo_t *bo, int /*x*/, int /*y*/, int /*w*/, int /*h*/,
+		int /*enable_write*/, void **addr)
 {
 	struct rockchip_buffer *buf = (struct rockchip_buffer *)bo;
 	struct gralloc_drm_handle_t *gr_handle = gralloc_drm_handle((buffer_handle_t)bo->handle);
 	struct dma_buf_sync sync_args;
 	int ret = 0, ret2 = 0;
 
-	UNUSED(drv, x, y, w, h, enable_write);
+	//UNUSED(drv, x, y, w, h, enable_write);
 
 	if (gr_handle->usage & GRALLOC_USAGE_PROTECTED)
 	{
@@ -2190,9 +2169,9 @@ static int drm_gem_rockchip_map(struct gralloc_drm_drv_t *drv,
 			if(!strcmp(cmdline,"android.view.cts"))
 			{
 				FindAppHintInFile(VIEW_CTS_FILE, VIEW_CTS_PROG_NAME, BIG_SCALE_HINT, &big_scale, IMG_INT_TYPE);
-				if(big_scale && (gr_handle->usage == 0x603 || gr_handle->usage == 0x203) ) {
-					char* pAddr = (char*)(*addr);
-					memset(*addr,0xFF,gr_handle->height*gr_handle->byte_stride);
+				if(big_scale && (gr_handle->usage == 0x603 || gr_handle->usage == 0x203) )
+				{
+					memset(*addr, 0xFF, gr_handle->height * gr_handle->byte_stride);
 					ALOGD_IF(1, "memset 0xff byte_stride=%d iCnt=%d",gr_handle->byte_stride,iCnt);
 					iCnt++;
 				}
@@ -2262,10 +2241,9 @@ static int drm_init_version()
 struct gralloc_drm_drv_t *gralloc_drm_drv_create_for_rockchip(int fd)
 {
 	struct rockchip_info *info;
-	int ret;
 
 #if RK_DRM_GRALLOC
-        drm_init_version();
+	drm_init_version();
 #endif
 
 	info = (struct rockchip_info*)calloc(1, sizeof(*info));
