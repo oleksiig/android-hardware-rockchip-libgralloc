@@ -22,6 +22,7 @@
 #include <log/log.h>
 
 #include <string.h>
+#include <unistd.h>
 #include <dlfcn.h>
 #include <inttypes.h>
 #include <cutils/log.h>
