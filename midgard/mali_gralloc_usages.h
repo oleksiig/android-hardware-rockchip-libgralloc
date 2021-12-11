@@ -41,6 +41,10 @@
  * Gralloc private usage 0-3 are the same in 0.3 and 1.0.
  * We defined based our usages based on what is available.
  */
+
+/* for rk_hdr.*/
+#define USAGE_CONTAIN_VALUE(value,mask) ((usage & mask) == value)
+
 #if defined(GRALLOC_MODULE_API_VERSION_1_0)
 typedef enum
 {
@@ -61,10 +65,8 @@ typedef enum
 	MALI_GRALLOC_USAGE_AFBC_PADDING = (int)GRALLOC1_PRODUCER_USAGE_PRIVATE_2,
 
 } mali_gralloc_usage_type;
-#elif defined(GRALLOC_MODULE_API_VERSION_0_3)
 
-/* for rk_hdr.*/
-#define USAGE_CONTAIN_VALUE(value,mask) ((usage & mask) == value)
+#elif defined(GRALLOC_MODULE_API_VERSION_0_3)
 
 typedef enum
 {
@@ -85,12 +87,15 @@ typedef enum
 	MALI_GRALLOC_USAGE_AFBC_PADDING = GRALLOC_USAGE_PRIVATE_2,
 
 } mali_gralloc_usage_type;
+
 #else
+
 #if defined(GRALLOC_LIBRARY_BUILD)
 #error "Please include mali_gralloc_module.h before including other gralloc headers when building gralloc itself"
 #else
 #error "Please include either gralloc.h or gralloc1.h header before including gralloc_priv.h"
 #endif
+
 #endif
 
 #endif /*MALI_GRALLOC_USAGES_H_*/

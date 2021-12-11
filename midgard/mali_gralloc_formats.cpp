@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "gralloc"
+/**
+ * @file mali_gralloc_formats.cpp
+ *      实现 mali_gralloc_select_format, 从 arm_gralloc 中的版本精简得到.
+ */
 
-// #define LOG_NDEBUG 0
+#define LOG_TAG "gralloc"
 #include <log/log.h>
 
 #include <string.h>
-#include <unistd.h>
 #include <dlfcn.h>
 #include <inttypes.h>
-#include <cutils/log.h>
 
 #if GRALLOC_USE_GRALLOC1_API == 1
 #include <hardware/gralloc1.h>
@@ -34,7 +35,8 @@
 #endif
 
 // #include "mali_gralloc_module.h"
-// #include "gralloc_priv.h"
+
+#include "gralloc_drm.h"
 #include "gralloc_helper.h"
 #include "mali_gralloc_formats.h"
 #include "mali_gralloc_usages.h"
@@ -44,7 +46,8 @@ static int map_flex_formats(uint64_t req_format)
 	/* Map Android flexible formats to internal base formats */
 	if (req_format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED || req_format == HAL_PIXEL_FORMAT_YCbCr_420_888)
 	{
-		req_format = MALI_GRALLOC_FORMAT_INTERNAL_NV12;
+		ALOGI("to use HAL_PIXEL_FORMAT_YCrCb_NV12 for HAL_PIXEL_FORMAT_YCbCr_420_888.");
+		req_format = HAL_PIXEL_FORMAT_YCrCb_NV12;
 	}
 	else if (req_format == HAL_PIXEL_FORMAT_YCbCr_422_888)
 	{
@@ -67,21 +70,22 @@ uint64_t mali_gralloc_select_format(uint64_t req_format, mali_gralloc_format_typ
 
     if ( req_format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED )
     {
-        if ( GRALLOC_USAGE_HW_VIDEO_ENCODER == (usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) )
+        if ( GRALLOC_USAGE_HW_VIDEO_ENCODER == (usage & GRALLOC_USAGE_HW_VIDEO_ENCODER)
+            || GRALLOC_USAGE_HW_CAMERA_WRITE == (usage & GRALLOC_USAGE_HW_CAMERA_WRITE) )
         {
-            ALOGI("(usage & GRALLOC_USAGE_HW_VIDEO_ENCODER treat as NV12");
+            ALOGI("to select NV12 for HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED for usage : 0x%" PRIx64 ".", usage);
             internal_format = HAL_PIXEL_FORMAT_YCrCb_NV12;
         }
         else
         {
-            ALOGI("treat as NV12 888");
+            ALOGI("to select RGBX_8888 for HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED for usage : 0x%" PRIx64 ".", usage);
             internal_format = HAL_PIXEL_FORMAT_RGBX_8888;
         }
     }
     else if ( req_format == HAL_PIXEL_FORMAT_YCrCb_NV12_10
         && USAGE_CONTAIN_VALUE(GRALLOC_USAGE_TO_USE_ARM_P010, GRALLOC_USAGE_ROT_MASK) )
     {
-        ALOGV("rk_debug force  MALI_GRALLOC_FORMAT_INTERNAL_P010 usage=0x%" PRIu64, usage);
+        ALOGD("rk_debug force  MALI_GRALLOC_FORMAT_INTERNAL_P010 usage=0x%" PRIx64, usage);
         internal_format = MALI_GRALLOC_FORMAT_INTERNAL_P010; // base_format of internal_format, no modifiers.
     }
     else

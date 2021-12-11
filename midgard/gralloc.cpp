@@ -21,9 +21,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define LOG_TAG "GRALLOC-MOD"
+/**
+ * @file gralloc.cpp
+ * 包含对 drm_module_t(drm_gralloc_module_t) 的具体实现, 以及 对 drm_alloc_device 的具体实现.
+ */
 
-#include <cutils/log.h>
+#define LOG_TAG "GRALLOC-MOD"
+#include <log/log.h>
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <pthread.h>
@@ -34,6 +39,7 @@
 #include "gralloc_drm.h"
 #include "gralloc_drm_priv.h"
 #include "gralloc_drm_handle.h"
+
 #include "mali_gralloc_formats.h"
 
 #include <inttypes.h>
@@ -55,6 +61,7 @@ static int drm_init(struct drm_module_t *dmod)
 
 	pthread_mutex_lock(&dmod->mutex);
 	if (!dmod->drm) {
+        /* 创建 gralloc_drm_device. */
 		dmod->drm = gralloc_drm_create();
 		if (!dmod->drm)
 			err = -EINVAL;
@@ -237,6 +244,9 @@ static int drm_mod_perform(const struct gralloc_module_t *mod, int op, ...)
 	return err;
 }
 
+/**
+ * drm_gralloc_module 的 registerBuffer 方法的具体实现.
+ */
 static int drm_mod_register_buffer(const gralloc_module_t *mod,
 		buffer_handle_t handle)
 {
@@ -377,11 +387,10 @@ static int drm_mod_lock_ycbcr(gralloc_module_t const* module,
 
 
 
-static int drm_mod_unlock(const gralloc_module_t * /*mod*/, buffer_handle_t handle)
+static int drm_mod_unlock(const gralloc_module_t *mod, buffer_handle_t handle)
 {
-	//struct drm_module_t *dmod = (struct drm_module_t *) mod;
 	struct gralloc_drm_bo_t *bo;
-
+	UNUSED(mod);
 	bo = gralloc_drm_bo_from_handle(handle);
 	if (!bo)
 		return -EINVAL;
@@ -414,51 +423,41 @@ static int drm_mod_close_gpu0(struct hw_device_t *dev)
 	return 0;
 }
 
-static int drm_mod_free_gpu0(alloc_device_t * /*dev*/, buffer_handle_t handle)
+static int drm_mod_free_gpu0(alloc_device_t *dev, buffer_handle_t handle)
 {
-	//struct drm_module_t *dmod = (struct drm_module_t *) dev->common.module;
-
+	UNUSED(dev);
 	return gralloc_drm_free_bo_from_handle(handle);
 }
 
 static int drm_mod_alloc_gpu0(alloc_device_t *dev,
 		int w, int h, int format, int usage,
-		buffer_handle_t *handle, int *stride)
+		buffer_handle_t *handle, int *stride) // 'stride' : to return stride_in_pixel
 {
 	struct drm_module_t *dmod = (struct drm_module_t *) dev->common.module;
 	struct gralloc_drm_bo_t *bo;
-	int bpp;
-
-#if RK_DRM_GRALLOC
-    if(format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED)
-    {
-        if(usage  & GRALLOC_USAGE_HW_VIDEO_ENCODER)
-            bpp = 1;    //HAL_PIXEL_FORMAT_YCrCb_NV12
-        else
-            bpp = 4;    //HAL_PIXEL_FORMAT_RGBX_8888
-    }
-    else
-#endif
-    {
-	    bpp = gralloc_drm_get_bpp(format);
-    }
-
-	if (!bpp)
-	{
-#if RK_DRM_GRALLOC
-		ALOGE("Cann't get valid bpp for format(0x%x)", format);
-#endif
-		return -EINVAL;
-	}
+	int bpp; // bytes_per_pixel
+	int actual_format; // format used actually in the native buffer. while, 'format' : requested_format.
+	int byte_stride;
 
 	bo = gralloc_drm_bo_create(dmod->drm, w, h, format, usage);
 	if (!bo)
+	{
+		ALOGE("fail to create bo.");
 		return -ENOMEM;
+	}
 
-	*handle = gralloc_drm_bo_get_handle(bo, stride);
-	//It is no need this operation since stide is already in pixels.
-	/* in pixels */
-	*stride /= bpp;
+	*handle = gralloc_drm_bo_get_handle(bo, &byte_stride);
+
+	gralloc_drm_handle_get_format(*handle, &actual_format);
+	bpp = gralloc_drm_get_bpp(actual_format);
+	if (!bpp)
+	{
+#if RK_DRM_GRALLOC
+        LOG_ALWAYS_FATAL("Cann't get valid bpp for format(0x%x)", actual_format);
+#endif
+		return -EINVAL;
+	}
+	*stride = byte_stride / bpp;
 
 	return 0;
 }
@@ -480,6 +479,7 @@ static int drm_mod_open_gpu0(struct drm_module_t *dmod, hw_device_t **dev)
 	if (!alloc)
 		return -EINVAL;
 
+    /* 对 drm_alloc_device (drm_gralloc_module 对 alloc_device_t 的实现) 初始化. */ // .DP : drm_alloc_device
 	alloc->common.tag = HARDWARE_DEVICE_TAG;
 	alloc->common.version = 0;
 	alloc->common.module = &dmod->base.common;
@@ -508,6 +508,57 @@ static int drm_mod_open(const struct hw_module_t *mod,
 	return err;
 }
 
+#define BAD_VALUE 3
+
+static int drm_validate_buffer_size(const gralloc_module_t *mod, buffer_handle_t handle,
+            uint32_t w, uint32_t h, int32_t format, int usage, uint32_t stride)
+{
+    int bpp;
+
+    struct gralloc_drm_handle_t* hnd = (struct gralloc_drm_handle_t*)handle;
+
+    if ( w > hnd->width )
+    {
+        ALOGE("validateBufferSize failed, width is invaild");
+        return BAD_VALUE;
+    }
+
+    if ( h > hnd->height )
+    {
+        ALOGE("validateBufferSize failed, height is invaild");
+        return BAD_VALUE;
+    }
+
+    bpp = gralloc_drm_get_bpp(hnd->format);
+    if (stride > (hnd->stride / bpp ) )
+    {
+		if (hnd->stride > 0)
+		{
+			ALOGE("validateBufferSize failed, stride is invaild");
+			return BAD_VALUE;
+		}
+		else
+		{
+			ALOGE("validateBufferSize failed, hnd->stride is %d", hnd->stride);
+		}
+    }
+
+    if ( format != hnd->format )
+    {
+        if ( (format != HAL_PIXEL_FORMAT_YCbCr_420_888 || format != HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) &&
+                hnd->format != HAL_PIXEL_FORMAT_YCrCb_NV12 )
+        {
+            ALOGE("validateBufferSize failed, format is invaild, format = %x, hndfmt = %x", format, hnd->format);
+            return BAD_VALUE;
+        }
+    }
+
+    UNUSED(mod);
+    UNUSED(usage);
+
+    return 0;
+}
+
 static struct hw_module_methods_t drm_mod_methods = {
 	.open = drm_mod_open
 };
@@ -528,6 +579,7 @@ drm_module_t::drm_module_t()
     base.lock_ycbcr = drm_mod_lock_ycbcr;
     base.unlock = drm_mod_unlock;
     base.perform = drm_mod_perform;
+    base.validateBufferSize = drm_validate_buffer_size;
 
     mutex = PTHREAD_MUTEX_INITIALIZER;
     drm = NULL;

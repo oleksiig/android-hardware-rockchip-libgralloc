@@ -19,6 +19,10 @@
 #ifndef MALI_GRALLOC_PRIVATE_INTERFACE_TYPES_H_
 #define MALI_GRALLOC_PRIVATE_INTERFACE_TYPES_H_
 
+/**
+ * .DP : gralloc_buffer_attr_t,
+ *       对 gralloc_buffer attrib 实例的标识.
+ */
 enum
 {
 	/* CROP_RECT and YUV_TRANS are intended to be

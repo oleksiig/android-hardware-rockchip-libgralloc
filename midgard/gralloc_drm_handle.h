@@ -21,15 +21,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+/*
+ * 定义了表征 graphic_buffer_handle 的 类型 gralloc_drm_handle_t, 对应 arm_gralloc 中的 private_handle_t.
+ */
+
 #ifndef _GRALLOC_DRM_HANDLE_H_
 #define _GRALLOC_DRM_HANDLE_H_
-
-// #define LOG_NDEBUG
-#include <log/log.h>
 
 #include <cutils/native_handle.h>
 #include <system/graphics.h>
 #include <hardware/gralloc.h>
+#include <pthread.h>
 
 #include "mali_gralloc_usages.h"
 #include "mali_gralloc_formats.h"
@@ -49,6 +51,14 @@ typedef enum
 	MALI_DPY_TYPE_HDLCD
 } mali_dpy_type;
 
+
+#if 0
+#if MALI_PRODUCT_ID_T86X != 1 \
+    && MALI_PRODUCT_ID_T76X != 1 \
+    && MALI_PRODUCT_ID_T72X != 1
+#error "we must define MALI_PRODUCT_ID_TXXX for current Mali GPU."
+#endif
+
 /* ??? mali-t860 ??? AFBC. */
 #if MALI_PRODUCT_ID_T86X == 1 && MALI_AFBC_GRALLOC != 1
 #error "we must enable AFBC for mali-t860."
@@ -60,6 +70,7 @@ typedef enum
 
 #if MALI_PRODUCT_ID_T72X == 1 && MALI_AFBC_GRALLOC == 1
 #error "we must NOT enable AFBC for mali-t720."
+#endif
 #endif
 
 #endif
@@ -95,17 +106,32 @@ typedef enum
 
 struct gralloc_drm_bo_t;
 
+/**
+ * 对应 arm_gralloc 中的 private_handle_t.
+ */
 struct gralloc_drm_handle_t {
+    /* 基类子对象. */
 	native_handle_t base;
 
-	/* file descriptors */
+	/* file descriptors of the underlying dma_buf. */
 	int prime_fd;
 
 #if RK_DRM_GRALLOC
 #if MALI_AFBC_GRALLOC == 1
+    /**
+     * 用于存储和 AFBC 有关的 attributes 的 shared_memory 的 fd.
+     * 对该 buffer 的创建和访问的接口 定义在 gralloc_buffer_priv.h 中.
+     */
 	int     share_attr_fd;
 #endif
 #ifdef USE_HWC2
+    /**
+     * 用于存储和 rk 平台相关的 attributes 的 shared_memory 的 fd.
+     * 由庄晓亮仿照 'share_attr_fd' 实现,
+     * 对应 buffer 的具体类型是 rk_ashmem_t,
+     *      具体定义在 义在 hardware/libhardware/include/hardware/gralloc.h 中.
+     * 对该 buffer 的创建和访问的接口, 也定义在 gralloc_buffer_priv.h 中.
+     */
 	int ashmem_fd;
 #endif
         mali_dpy_type dpy_type;
@@ -117,7 +143,6 @@ struct gralloc_drm_handle_t {
         int        size;
         int        ref;
         int        pixel_stride;
-        
 
         union {
                 off_t    offset;
@@ -159,14 +184,27 @@ struct gralloc_drm_handle_t {
 	uint32_t reserve1;
 	uint32_t reserve2;
 
+    /* 表征 'this' 在当前进程中的 buffer_object. */
 	struct gralloc_drm_bo_t *data; /* pointer to struct gralloc_drm_bo_t */
 
 	// FIXME: the attributes below should be out-of-line
 	uint64_t unknown __attribute__((aligned(8)));
+
 	int data_owner; /* owner of data (for validation) */
+        // value 是 pid, buffer 被 alloc 的时候 首次有效设置.
+
+	uint32_t layer_count;
 };
+
+/**
+ * gralloc_drm_handle_t::magic
+ *
+ * @see create_bo_handle().
+ */
 #define GRALLOC_DRM_HANDLE_MAGIC 0x12345678
+
 #ifdef USE_HWC2
+
 #if MALI_AFBC_GRALLOC == 1
 #define GRALLOC_DRM_HANDLE_NUM_FDS 3
 #else
@@ -174,6 +212,7 @@ struct gralloc_drm_handle_t {
 #endif
 
 #else
+
 #if MALI_AFBC_GRALLOC == 1
 #define GRALLOC_DRM_HANDLE_NUM_FDS 2
 #else
@@ -192,6 +231,8 @@ enum
 };
 
 static pthread_mutex_t handle_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// .R : "buffer_handle_t" : ./include/system/window.h:60:typedef const native_handle_t* buffer_handle_t;
 static inline struct gralloc_drm_handle_t *gralloc_drm_handle(buffer_handle_t _handle)
 {
 	struct gralloc_drm_handle_t *handle = (struct gralloc_drm_handle_t *) _handle;

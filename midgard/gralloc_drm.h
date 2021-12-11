@@ -21,26 +21,123 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+/**
+ * @file gralloc_drm.h
+ * 定义提供给 gralloc.cpp 调用的 gralloc_drm_device 的功能接口.
+ */
+
 #ifndef _GRALLOC_DRM_H_
 #define _GRALLOC_DRM_H_
 
 #include <hardware/gralloc.h>
 #include <system/graphics.h>
-
+#include <mali_gralloc_formats.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define ALIGN(val, align) (((val) + (align) - 1) & ~((align) - 1))
 
+
+enum {
+    /* buffer may be used as a cursor */
+    GRALLOC_USAGE_ROT_MASK              = 0x0F000000U,
+
+    GRALLOC_USAGE_TO_USE_SINGLE_BUFFER  = 0x0B000000U,
+
+    /* mali p010 format */
+    GRALLOC_USAGE_TO_USE_ARM_P010       = 0x0A000000U,
+    /* would like to use a fbdc(afbc) format. */
+    GRALLOC_USAGE_TO_USE_FBDC_FMT       = 0x09000000U,
+    /* use Physically Continuous memory */
+    GRALLOC_USAGE_TO_USE_PHY_CONT      = 0x08000000U,
+};
+
+/**
+ * perform operation commands for rk gralloc.
+ * Helpers for using the non-type-safe perform() extension functions. Use
+ * these helpers instead of calling perform() directly in your application.
+ */
+enum {
+  /****************Implement****************/
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_PHY_ADDR       = 0x08100001U,
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_PRIME_FD       = 0x08100002U,
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_ATTRIBUTES     = 0x08100004U,
+  GRALLOC_MODULE_PERFORM_GET_INTERNAL_FORMAT       = 0x08100006U,
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_WIDTH          = 0x08100008U,
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_HEIGHT         = 0x0810000AU,
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_STRIDE         = 0x0810000CU,
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_BYTE_STRIDE    = 0x0810000EU,
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_FORMAT         = 0x08100010U,
+  GRALLOC_MODULE_PERFORM_GET_HADNLE_SIZE           = 0x08100012U,
+  
+  GRALLOC_MODULE_PERFORM_GET_RK_ASHMEM             = 0x08100014U,
+  GRALLOC_MODULE_PERFORM_SET_RK_ASHMEM             = 0x08100016U,
+  
+  /* perform(const struct gralloc_module_t *mod,
+   *     int op,
+   *     buffer_handle_t buffer,
+   *     int *usage);
+   */
+  GRALLOC_MODULE_PERFORM_GET_USAGE = 0x0feeff03,
+   
+  
+  /****************Not Implement****************/
+  GRALLOC_MODULE_PERFORM_GET_DRM_FD                = 0x08000002U,
+  /* perform(const struct gralloc_module_t *mod,
+   *       int op,
+   *       int drm_fd,
+   *       buffer_handle_t buffer,
+   *       struct hwc_drm_bo *bo);
+   */
+  GRALLOC_MODULE_PERFORM_DRM_IMPORT                = 0xffeeff00U,
+
+  /* perform(const struct gralloc_module_t *mod,
+   *       int op,
+   *       buffer_handle_t buffer,
+   *       void (*free_callback)(void *),
+   *       void *priv);
+   */
+  GRALLOC_MODULE_PERFORM_SET_IMPORTER_PRIVATE      = 0xffeeff01U,
+
+  /* perform(const struct gralloc_module_t *mod,
+   *       int op,
+   *       buffer_handle_t buffer,
+   *       void (*free_callback)(void *),
+   *       void **priv);
+   */
+  GRALLOC_MODULE_PERFORM_GET_IMPORTER_PRIVATE      = 0xffeeff02U,
+};
+
+enum {
+    HAL_PIXEL_FORMAT_YCrCb_NV12         = 0x15, // YUY2
+    HAL_PIXEL_FORMAT_YCrCb_NV12_10      = 0x17, // YUY2_10bit
+    HAL_PIXEL_FORMAT_YCbCr_422_SP_10    = 0x18, //
+    HAL_PIXEL_FORMAT_YCrCb_420_SP_10    = 0x19, //
+};
+
 struct gralloc_drm_t;
 struct gralloc_drm_bo_t;
 
+#define maxLayerNameLength     100
+typedef struct rk_ashmem_t
+{
+    int32_t alreadyStereo;
+    int32_t displayStereo;
+    char LayerName[maxLayerNameLength + 1];
+} rk_ashmem_t;
+
+/**
+ * 创建一个 gralloc_drm_device 实例.
+ */
 struct gralloc_drm_t *gralloc_drm_create(void);
 void gralloc_drm_destroy(struct gralloc_drm_t *drm);
 
 int gralloc_drm_get_fd(struct gralloc_drm_t *drm);
 
+/**
+ * 获取指定 hal_pixel_format 的 bytes_per_pixel.
+ */
 static inline int gralloc_drm_get_bpp(int format)
 {
 	int bpp;
@@ -74,6 +171,7 @@ static inline int gralloc_drm_get_bpp(int format)
 	case HAL_PIXEL_FORMAT_YCbCr_420_888:
 #if RK_DRM_GRALLOC
 	case HAL_PIXEL_FORMAT_YCrCb_NV12_10:
+	case MALI_GRALLOC_FORMAT_INTERNAL_P010:
 #endif
 	case HAL_PIXEL_FORMAT_BLOB:
 		bpp = 1;

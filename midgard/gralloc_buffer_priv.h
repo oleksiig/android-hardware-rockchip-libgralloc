@@ -23,13 +23,15 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "gralloc_drm_handle.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // private gralloc buffer manipulation API
 
+/**
+ * .DP : gralloc_buffer_attr_buffer_t
+ */
 struct attr_region
 {
 	/* Rectangle to be cropped from the full frame (Origin in top-left corner!) */
@@ -143,6 +145,15 @@ out:
 }
 
 /*
+#define LayerNameLength		100
+typedef struct rk_ashmem_t
+{
+    int32_t alreadyStereo;
+    int32_t displayStereo;
+    char LayerName[LayerNameLength + 1];
+} rk_ashmem_t;
+*/
+/*
  * Read or write rk_ashmem from/to the storage area.
  *
  * Return 0 on success.
@@ -189,6 +200,9 @@ out:
 	return rval;
 }
 #endif
+
+/*---------------------------------------------------------------------------*/
+// mali_so 依赖 gralloc 的部分, 会直接调用下面 4 个 函数.
 
 /*
  * Map the attribute storage area before attempting to
